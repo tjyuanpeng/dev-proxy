@@ -1,10 +1,6 @@
 import http from 'http'
 import httpProxy from 'http-proxy'
-
-const TARGET_URL = 'http://0.0.0.0:8081/'
-// const TARGET_URL = 'http://0.0.0.0:5172/'
-
-const PORT = 80
+import { parseArgs } from "node:util"
 
 function createUrl(url, base) {
   try {
@@ -14,7 +10,11 @@ function createUrl(url, base) {
   }
 }
 
-function start() {
+function start({ tport, url, port = 80, log = false }) {
+  if (tport) {
+    url = `http://0.0.0.0:${tport}/`
+  }
+
   const proxy = httpProxy.createProxyServer({
     followRedirects: true,
   })
@@ -43,18 +43,18 @@ function start() {
 
   // create http server
   const server = http.createServer(function (req, res) {
-    console.info(`[web] from:[${req.url}], to:[${createUrl(req.url, TARGET_URL)}]`)
+    log && console.info(`[web] from:[${req.url}], to:[${createUrl(req.url, url)}]`)
     proxy.web(req, res, {
-      target: TARGET_URL,
+      target: url,
       changeOrigin: true,
     })
   })
 
   // handle websocket request
   server.on('upgrade', function (req, socket, head) {
-    console.info(`[ws] from:[${req.url}], to:[${TARGET_URL}]`)
+    log && console.info(`[ws] from:[${req.url}], to:[${url}]`)
     proxy.ws(req, socket, head, {
-      target: TARGET_URL,
+      target: url,
       changeOrigin: true,
     })
   })
@@ -64,13 +64,33 @@ function start() {
     console.error(`[server] error: ${e}`)
   })
 
-  server.listen(PORT, e => {
+  server.listen(port, e => {
     if (e) {
       console.error(`[server] listening error: ${e}`)
     } else {
-      console.info(`[server] start listening on port: [${PORT}], TARGET_URL: [${TARGET_URL}]`)
+      console.info(`[server] start listening on port: [${port}], target url: [${url}]`)
     }
   })
 }
 
-start()
+const args = parseArgs({
+  options: {
+    url: {
+      type: "string",
+      short: "u",
+    },
+    tport: {
+      type: "string",
+      short: "t",
+    },
+    port: {
+      type: "string",
+      short: "p",
+    },
+    log: {
+      type: "boolean",
+      short: "l",
+    },
+  },
+})
+start(args.values)
