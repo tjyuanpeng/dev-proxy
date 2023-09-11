@@ -5,13 +5,14 @@
   "private": true,
   "main": "src/index.js",
   "scripts": {
-    "start": "nodemon ./src/index.js"
+    "start": "node ./src/index.js"
   },
   "engines": {
     "node": ">=18"
   },
   "license": "ISC",
   "dependencies": {
+    "cac": "^6.7.14",
     "http-proxy": "^1.18.1"
   },
   "devDependencies": {

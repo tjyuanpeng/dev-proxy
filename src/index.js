@@ -1,6 +1,6 @@
+import cac from 'cac'
 import http from 'http'
 import httpProxy from 'http-proxy'
-import { parseArgs } from "node:util"
 
 function createUrl(url, base) {
   try {
@@ -10,11 +10,7 @@ function createUrl(url, base) {
   }
 }
 
-function start({ tport, url, port = 80, log = false }) {
-  if (tport) {
-    url = `http://0.0.0.0:${tport}/`
-  }
-
+function start({ url, port = 80, log = false }) {
   const proxy = httpProxy.createProxyServer({
     followRedirects: true,
   })
@@ -71,26 +67,36 @@ function start({ tport, url, port = 80, log = false }) {
       console.info(`[server] start listening on port: [${port}], target url: [${url}]`)
     }
   })
+  return function close () {
+    proxy.close()
+    server.close()
+    console.info(`[server] service closed`)
+  }
 }
 
-const args = parseArgs({
-  options: {
-    url: {
-      type: "string",
-      short: "u",
-    },
-    tport: {
-      type: "string",
-      short: "t",
-    },
-    port: {
-      type: "string",
-      short: "p",
-    },
-    log: {
-      type: "boolean",
-      short: "l",
-    },
-  },
-})
-start(args.values)
+let closehandler = null
+const cli = cac()
+cli
+  .command('[target-url]', 'start proxy servie with target url')
+  .option('-u, --url <url>', 'target url', {
+    default: 'http://0.0.0.0/',
+  })
+  .option('-t, --tport <tport>', 'target port')
+  .option('-p, --port', 'http server port', {
+    default: 80,
+  })
+  .option('-l, --log', 'show verbose log', {
+    default: false,
+  })
+  .action((targetUrl, options) => {
+    const url = new URL(targetUrl || options.url)
+    url.port = options.tport
+    closehandler && closehandler()
+    closehandler = start({
+      url,
+      port: options.port,
+      log: options.log,
+    })
+  })
+cli.help()
+cli.parse()
